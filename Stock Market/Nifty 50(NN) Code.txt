@@ -1,0 +1,96 @@
+# Artificial Neural Network
+
+# Setting working directory
+setwd("C:/Users/Rohan Sinha/Desktop/Mini Project")
+
+#Reading Data
+data<-read.csv("Nifty_50.csv")
+
+#Converting String to Integer
+data$Date = substr(data$Date,start = 1,stop = 2) 
+data$Date = strtoi(data$Date,base = 10L)
+
+
+#Splitting data into test set and training set
+library(caTools)
+set.seed(123)
+split = sample.split(data$Price, SplitRatio = 0.8)
+training_set = subset(data, split == TRUE)
+test_set = subset(data, split == FALSE)
+
+training_set[-7] = scale(training_set[-7])
+test_set[-7] = scale(test_set[-7])
+
+library(h2o)
+h2o.init(nthreads = -1)
+
+# Using 1 Hidden Layer
+model = h2o.deeplearning(y = 'Price',
+                         training_frame = as.h2o(training_set),
+                         activation = 'Tanh',
+                         hidden = c(5),
+                         epochs = 200,
+                         train_samples_per_iteration = -2)
+
+# Using 2 Hidden Layers
+model = h2o.deeplearning(y = 'Price',
+                         training_frame = as.h2o(training_set),
+                         activation = 'Tanh',
+                         hidden = c(5,5),
+                         epochs = 200,
+                         train_samples_per_iteration = -2)
+
+# Using 3 Hidden Layers
+model = h2o.deeplearning(y = 'Price',
+                         training_frame = as.h2o(training_set),
+                         activation = 'Tanh',
+                         hidden = c(5,5,5),
+                         epochs = 200,
+                         train_samples_per_iteration = -2)
+
+
+# Predicting the Test set results
+y_pred = h2o.predict(model, newdata = as.h2o(test_set))
+y_pred = as.vector(y_pred)
+y_actual = as.vector(test_set[7])
+
+# Calculating error percentage
+error = abs((y_pred-test_set[7]))
+error_percent = (error/(test_set[7]))*100
+
+avg_error = sum(error)/5
+
+library(rsparkling)
+
+library(dplyr)
+
+library(ggplot2)
+
+data1 <- data.frame(
+  predicted = y_pred,
+  actual    = y_actual
+)
+ggplot(data1, aes(x = y_actual, y = y_pred)) +
+  geom_abline(slope = 1, col = "red") +
+  geom_point() +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  coord_fixed(ratio = 1) +
+  labs(
+    x = "Actual Stock Value",
+    y = "Predicted Stock Value",
+    title = "Predicted vs. Actual Stock Value"
+  )
+
+#Predicting New Value
+new_data1 <- data.frame(
+   Date = "23-09-2017", 
+   Open = 9961.15,
+   High = 9969.80,
+   Low = 9893.05,
+   Close = 9908.05,
+   Volume = 169200
+)
+new_data1$Date = substr(new_data1$Date,start = 1,stop = 2) 
+new_data1$Date = strtoi(new_data1$Date,base = 10L)
+
+price = h2o.predict(model, newdata = as.h2o(new_data1))
